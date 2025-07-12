@@ -1,0 +1,218 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  firstName String
+  lastName  String
+  password  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // User's player groups
+  playerGroups PlayerGroup[]
+  matches      Match[]
+
+  @@map("users")
+}
+
+model PlayerGroup {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "Wednesday Soccer Group"
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  owner   User?   @relation(fields: [ownerId], references: [id])
+  ownerId String?
+
+  players Player[]
+  matches Match[]
+
+  @@map("player_groups")
+}
+
+model Player {
+  id   String @id @default(cuid())
+  name String
+  
+  // Summary Attributes (0-100)
+  technical Int @default(50)
+  mental    Int @default(50)
+  physical  Int @default(50)
+
+  // Physical attributes
+  height Int? // in cm
+  weight Int? // in kg
+  age    Int?
+
+  // Primary position
+  primaryPosition Position @default(CM)
+  
+  // Secondary positions (can play multiple positions)
+  secondaryPositions Position[]
+
+  // Detailed Technical Attributes (0-100)
+  corners          Int @default(50)
+  crossing         Int @default(50)
+  dribbling        Int @default(50)
+  finishing        Int @default(50)
+  firstTouch       Int @default(50)
+  freeKickTaking   Int @default(50)
+  heading          Int @default(50)
+  longShots        Int @default(50)
+  longThrows       Int @default(50)
+  marking          Int @default(50)
+  passing          Int @default(50)
+  penaltyTaking    Int @default(50)
+  tackling         Int @default(50)
+  technique        Int @default(50)
+
+  // Detailed Mental Attributes (0-100)
+  aggression     Int @default(50)
+  anticipation   Int @default(50)
+  bravery        Int @default(50)
+  composure      Int @default(50)
+  concentration  Int @default(50)
+  decisions      Int @default(50)
+  determination  Int @default(50)
+  flair          Int @default(50)
+  leadership     Int @default(50)
+  offTheBall     Int @default(50)
+  positioning    Int @default(50)
+  teamwork       Int @default(50)
+  vision         Int @default(50)
+  workRate       Int @default(50)
+
+  // Detailed Physical Attributes (0-100)
+  acceleration   Int @default(50)
+  agility        Int @default(50)
+  balance        Int @default(50)
+  jumpingReach   Int @default(50)
+  naturalFitness Int @default(50)
+  pace           Int @default(50)
+  stamina        Int @default(50)
+  strength       Int @default(50)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  playerGroup   PlayerGroup @relation(fields: [playerGroupId], references: [id], onDelete: Cascade)
+  playerGroupId String
+
+  // Match participations
+  matchPlayers MatchPlayer[]
+
+  @@map("players")
+}
+
+model Match {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "Wednesday Match - Jan 15"
+  description String?
+  matchDate   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  creator   User?        @relation(fields: [creatorId], references: [id])
+  creatorId String?
+  
+  playerGroup   PlayerGroup @relation(fields: [playerGroupId], references: [id])
+  playerGroupId String
+
+  // Selected players for this match
+  matchPlayers MatchPlayer[]
+  
+  // Generated team scenarios
+  generatedTeams GeneratedTeam[]
+
+  @@map("matches")
+}
+
+model MatchPlayer {
+  id String @id @default(cuid())
+
+  match   Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchId String
+
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId String
+
+  @@unique([matchId, playerId])
+  @@map("match_players")
+}
+
+model GeneratedTeam {
+  id       String @id @default(cuid())
+  scenario Int    // 1, 2, or 3 (three different scenarios)
+  teamName String // "Team A" or "Team B"
+  
+  // Player assignments with positions
+  playerAssignments Json // { "playerId": "position" }
+  
+  // Team stats for balance comparison
+  totalRating     Float
+  technicalRating Float
+  mentalRating    Float
+  physicalRating  Float
+  
+  // Formation used (e.g., "4-4-2", "4-3-3")
+  formation String @default("4-4-2")
+
+  createdAt DateTime @default(now())
+
+  match   Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchId String
+
+  @@map("generated_teams")
+}
+
+// Enums
+enum Position {
+  // Goalkeeper
+  GK              // Goalkeeper
+  
+  // Defenders
+  SW              // Sweeper
+  LB              // Left Back
+  LCB             // Left Center Back
+  CB              // Center Back
+  RCB             // Right Center Back
+  RB              // Right Back
+  
+  // Wing Backs
+  LWB             // Left Wing Back
+  RWB             // Right Wing Back
+  
+  // Defensive Midfielders
+  CDM             // Central Defensive Midfielder
+  
+  // Midfielders
+  LM              // Left Midfielder
+  LCM             // Left Central Midfielder
+  CM              // Central Midfielder
+  RCM             // Right Central Midfielder
+  RM              // Right Midfielder
+  
+  // Attacking Midfielders
+  CAM             // Central Attacking Midfielder
+  
+  // Wingers & Forwards
+  LW              // Left Winger
+  RW              // Right Winger
+  SS              // Second Striker
+  CF              // Centre Forward
+  ST              // Striker
+}
